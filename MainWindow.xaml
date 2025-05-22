@@ -1,0 +1,22 @@
+﻿<Window x:Class="SymlinkApp.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SymlinkApp"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="450" Width="400">
+    <Grid>
+        <TextBox x:Name="folder1" HorizontalAlignment="Left" Margin="54,153,0,0" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="203"/>
+        <TextBox x:Name="folder2" HorizontalAlignment="Left" Margin="54,222,0,0" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="203" KeyDown="Enter_KeyDown"/>
+        
+        <Label Content="Původní cesta: " HorizontalAlignment="Left" Margin="54,122,0,0" VerticalAlignment="Top"/>
+        <Label Content="Cílová cesta: " HorizontalAlignment="Left" Margin="54,191,0,0" VerticalAlignment="Top"/>
+
+        <Button x:Name="runBtn" Content="Vytvoř symlink"  Click="runBtn_Click" Margin="99,68,160,312"/>
+        <Button x:Name="delBtn" Content="Smazat složku"  Click="delBtn_Click" Margin="99,245,160,135"/>
+
+        <Button x:Name="btnBrowse1" Content="..." HorizontalAlignment="Left" Margin="262,153,0,0" VerticalAlignment="Top" Height="18" Click="btnBrowse1_Click"/>
+        <Button x:Name="btnBrowse2" Content="..." HorizontalAlignment="Left" Margin="262,222,0,0" VerticalAlignment="Top" Height="18" Click="btnBrowse2_Click"/>
+    </Grid>
+</Window>
