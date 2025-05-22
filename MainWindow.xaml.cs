@@ -138,91 +138,124 @@ namespace SymlinkApp
 
         private void delBtn_Click(object sender, RoutedEventArgs e)
         {
-            string originalPath = folder1.Text;
-            string targetPath = folder2.Text;
+            string originalPath = folder1.Text.Trim();
+            // string targetPath = folder2.Text.Trim(); // Není v této metodě použitý, můžeš smazat
 
-            FileAttributes attr = File.GetAttributes(originalPath);
-            var soubor = File.Exists(originalPath);
-            var slozka = Directory.Exists(originalPath);
-
-            if ((attr & FileAttributes.ReparsePoint) == FileAttributes.ReparsePoint)
+            if (string.IsNullOrWhiteSpace(originalPath))
             {
-                // Je to symlink – smažem podle typu
-                var result2 = MessageBox.Show("Bacha, chystám se smazat symlink, vážně to chceš udělat kašpare?", "Delete symlink", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-                if (result2 == MessageBoxResult.Yes)
-                {
-                    if (Directory.Exists(originalPath))
-                        Directory.Delete(originalPath);
-                    else
-                        File.Delete(originalPath);
-                }
-
-            }
-            else if (slozka)
-            {
-                var result2 = MessageBox.Show($"Chystám se smazat složku {originalPath}", "DeleteFolder", MessageBoxButton.YesNo, MessageBoxImage.Error);
-                if (result2 == MessageBoxResult.Yes)
-                {
-                    Directory.Delete(originalPath, true);
-                }
-                else
-                    return;
-            }
-            else if (soubor)
-            {
-                var result2 = MessageBox.Show($"Chystám se smazat soubor {originalPath} co ale není symlink", "DeleteFile", MessageBoxButton.OK, MessageBoxImage.Error);
-                if (result2 == MessageBoxResult.Yes)
-                {
-                    File.Delete(originalPath);
-                }
-                else
-                    return;
-            }
-        
-
-            if (!slozka && !soubor)
-            {
-                MessageBox.Show($"Cesta '{originalPath}' neexistuje, more šašku, nemám co smazat.", "Cesta nenalezena", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Není zadaná cesta (folder1).", "Chyba", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            
+            bool isDirectory;
+            bool isFile;
+            bool isSymlink = false;
+            FileAttributes attributes = 0;
+
             try
             {
-                if (slozka)
+                // Zjistíme atributy a existenci POUZE JEDNOU
+                if (File.Exists(originalPath) || Directory.Exists(originalPath)) // Zkontroluj, zda vůbec něco existuje
                 {
-                    Directory.Delete(originalPath, true);
-                    MessageBox.Show("Složka smazána", "Hotovo", MessageBoxButton.OK, MessageBoxImage.Information);
+                    attributes = File.GetAttributes(originalPath);
+                    isSymlink = (attributes & FileAttributes.ReparsePoint) == FileAttributes.ReparsePoint;
+                    // Pokud je to symlink, Directory.Exists a File.Exists se chovají podle toho, na co symlink ukazuje.
+                    // Ale pro naše účely mazání chceme vědět, zda je to "adresářový symlink" nebo "souborový symlink".
+                    // Atribut Directory u ReparsePointu může pomoci.
+                    if (isSymlink)
+                    {
+                        isDirectory = (attributes & FileAttributes.Directory) == FileAttributes.Directory;
+                        isFile = !isDirectory; // Pokud je symlink a není adresářový, je souborový
+                    }
+                    else
+                    {
+                        isDirectory = Directory.Exists(originalPath); // Znovu, pro případ, že to není symlink
+                        isFile = File.Exists(originalPath);
+                    }
                 }
-
-                else if (soubor)
+                else
                 {
-                    File.Delete(originalPath);
-                    MessageBox.Show("Soubor smazán", "Hotovo", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show($"Cesta '{originalPath}' neexistuje.", "Cesta nenalezena", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
                 }
+            }
+            catch (Exception exAttr) // Zde by mohla být FileNotFoundException, pokud cesta zmizí
+            {
+                MessageBox.Show($"Chyba při čtení informací o cestě '{originalPath}': {exAttr.Message}", "Chyba", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
 
+            // Teď máme proměnné isDirectory, isFile, isSymlink
+
+            string typPolozky = isSymlink ? "symlink" : (isDirectory ? "složku" : "soubor");
+            string zpravaPotvrzeni;
+
+            if (isSymlink)
+            {
+                zpravaPotvrzeni = $"Opravdu chcete smazat {typPolozky} '{originalPath}'?";
+            }
+            else
+            {
+                zpravaPotvrzeni = $"Opravdu chcete smazat {(isDirectory ? "složku a VŠECHEN její obsah" : "soubor")} '{originalPath}'?";
+            }
+
+            var confirmResult = MessageBox.Show(zpravaPotvrzeni, "Potvrzení smazání", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (confirmResult != MessageBoxResult.Yes)
+            {
+                MessageBox.Show("Mazání zrušeno uživatelem.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // --- JEDEN BLOK PRO MAZÁNÍ ---
+            try
+            {
+                if (isSymlink)
+                {
+                    // Symlinky se mažou jako soubory (i když ukazují na adresář, mažeme jen ten odkaz)
+                    // Nebo specificky pro adresářové symlinky Directory.Delete(path, false)
+                    // Pro zjednodušení:
+                    if (isDirectory) // Symlink na adresář
+                        Directory.Delete(originalPath, false); // false, protože mažeme jen samotný odkaz
+                    else // Symlink na soubor
+                        File.Delete(originalPath);
+                    MessageBox.Show($"Symlink '{originalPath}' smazán.", "Hotovo", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else if (isDirectory)
+                {
+                    Directory.Delete(originalPath, true); // Rekurzivní smazání skutečné složky
+                    MessageBox.Show($"Složka '{originalPath}' a její obsah smazány.", "Hotovo", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else if (isFile)
+                {
+                    File.Delete(originalPath); // Smazání skutečného souboru
+                    MessageBox.Show($"Soubor '{originalPath}' smazán.", "Hotovo", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                // else by zde nemělo nastat, protože jsme existenci kontrolovali na začátku
             }
             catch (UnauthorizedAccessException)
             {
                 var elevateResult = MessageBox.Show(
-                    $"Máš malý práva na to smazat {originalPath}.\n\nChceš zkusit to zkusit smazat s admin právama?",
+                    $"Nemáte oprávnění smazat '{originalPath}'.\nChcete to zkusit jako administrátor?",
                     "Vyžadována administrátorská práva",
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Warning);
 
                 if (elevateResult == MessageBoxResult.Yes)
                 {
-                    TryDeleteWithAdminRights(originalPath, slozka);
+                    // Zde je důležité předat správnou informaci, zda původní položka (ne nutně symlink) byla složka.
+                    // Pokud mažeme symlink, který ukazoval na složku, pro TryDeleteWithAdminRights by to měl být příkaz pro smazání složky (nebo souboru, pokud symlink na soubor).
+                    // Pokud je to symlink, tak je 'isDirectory' určeno podle toho, zda měl symlink atribut Directory.
+                    TryDeleteWithAdminRights(originalPath, isDirectory); // Předáváme, zda se to chovalo jako složka
                 }
-
             }
             catch (IOException ioEx)
             {
-                MessageBox.Show($"Chyba při mazání (I/O): {ioEx.Message}\nUjisti se, že soubor nebo složka není používána jiným programem.", "Chyba při mazání", MessageBoxButton.OK, MessageBoxImage.Error);
+                string itemDesc = isSymlink ? "symlink" : (isDirectory ? "složku" : "soubor");
+                MessageBox.Show($"Chyba při mazání {itemDesc} (I/O): {ioEx.Message}\nUjistěte se, že {itemDesc} není používána jiným programem.", "Chyba při mazání", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-            catch (Exception ex)
+            catch (Exception ex) // Včetně FileNotFoundException / DirectoryNotFoundException, pokud by přece jen nastala
             {
-                MessageBox.Show($"Obecná chyba při mazání: {ex.Message}", "Chyba", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Obecná chyba při mazání '{originalPath}': {ex.Message}", "Chyba", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
