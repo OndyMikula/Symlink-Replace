@@ -73,26 +73,21 @@ namespace SymlinkApp
 
             if (slozka)
             {
-                symlinkPath.Add("/D");
+                symlinkPath.Add("/D"); // pro symlink na složku
             }
             symlinkPath.Add($"\"{originalPath}\"");
             symlinkPath.Add($"\"{targetPath}\"");
-            string createSymlinkPath = string.Join(" ", symlinkPath);
+            string createSymlinkPath = string.Join(" ", symlinkPath); //complete command for making symlink in cmd
 
-            ProcessStartInfo psi = new ProcessStartInfo("cmd.exe",$"/k {createSymlinkPath}");
+            ProcessStartInfo psi = new ProcessStartInfo("cmd.exe",$"/k {createSymlinkPath}"); //spusti cmd jako admin
             psi.UseShellExecute = true;
-            psi.Verb = "runas";
+            psi.Verb = "runas";  //spusti cmd jako admin
             Process proc = Process.Start(psi);
 
             try
             {
-                if (proc != null)
+                if (proc == null)
                 {
-                    
-                }
-                else
-                {
-                    // Toto by se stalo, jen kdyby Process.Start samo vrátilo null, což je velmi vzácné.
                     MessageBox.Show("Nepodařilo se získat referenci na spuštěný CMD proces.", "Chyba spuštění", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
@@ -106,7 +101,7 @@ namespace SymlinkApp
             }
         }
 
-        private void Enter_KeyDown(object sender, KeyEventArgs e)
+        private void Enter_KeyDown(object sender, KeyEventArgs e) //Enter key starts runBtn_Click
         {
             if (e.Key == Key.Enter)
             {
@@ -114,7 +109,7 @@ namespace SymlinkApp
             }
         }
 
-        private void btnBrowse1_Click(object sender, RoutedEventArgs e)
+        private void btnBrowse1_Click(object sender, RoutedEventArgs e) //route for originalPath
         {
             using (var dialog = new FolderBrowserDialog())
             {
@@ -125,7 +120,7 @@ namespace SymlinkApp
             }
         }
 
-        private void btnBrowse2_Click(object sender, RoutedEventArgs e)
+        private void btnBrowse2_Click(object sender, RoutedEventArgs e) //route for targetPath
         {
             using (var dialog = new FolderBrowserDialog())
             {
@@ -139,7 +134,6 @@ namespace SymlinkApp
         private void delBtn_Click(object sender, RoutedEventArgs e)
         {
             string originalPath = folder1.Text.Trim();
-            // string targetPath = folder2.Text.Trim(); // Není v této metodě použitý, můžeš smazat
 
             if (string.IsNullOrWhiteSpace(originalPath))
             {
@@ -154,22 +148,19 @@ namespace SymlinkApp
 
             try
             {
-                // Zjistíme atributy a existenci POUZE JEDNOU
-                if (File.Exists(originalPath) || Directory.Exists(originalPath)) // Zkontroluj, zda vůbec něco existuje
+                if (File.Exists(originalPath) || Directory.Exists(originalPath))
                 {
                     attributes = File.GetAttributes(originalPath);
                     isSymlink = (attributes & FileAttributes.ReparsePoint) == FileAttributes.ReparsePoint;
-                    // Pokud je to symlink, Directory.Exists a File.Exists se chovají podle toho, na co symlink ukazuje.
-                    // Ale pro naše účely mazání chceme vědět, zda je to "adresářový symlink" nebo "souborový symlink".
-                    // Atribut Directory u ReparsePointu může pomoci.
+
                     if (isSymlink)
                     {
                         isDirectory = (attributes & FileAttributes.Directory) == FileAttributes.Directory;
-                        isFile = !isDirectory; // Pokud je symlink a není adresářový, je souborový
+                        isFile = !isDirectory;
                     }
                     else
                     {
-                        isDirectory = Directory.Exists(originalPath); // Znovu, pro případ, že to není symlink
+                        isDirectory = Directory.Exists(originalPath); 
                         isFile = File.Exists(originalPath);
                     }
                 }
@@ -179,13 +170,11 @@ namespace SymlinkApp
                     return;
                 }
             }
-            catch (Exception exAttr) // Zde by mohla být FileNotFoundException, pokud cesta zmizí
+            catch (Exception exAttr) 
             {
                 MessageBox.Show($"Chyba při čtení informací o cestě '{originalPath}': {exAttr.Message}", "Chyba", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
-
-            // Teď máme proměnné isDirectory, isFile, isSymlink
 
             string typPolozky = isSymlink ? "symlink" : (isDirectory ? "složku" : "soubor");
             string zpravaPotvrzeni;
@@ -211,9 +200,7 @@ namespace SymlinkApp
             {
                 if (isSymlink)
                 {
-                    // Symlinky se mažou jako soubory (i když ukazují na adresář, mažeme jen ten odkaz)
-                    // Nebo specificky pro adresářové symlinky Directory.Delete(path, false)
-                    // Pro zjednodušení:
+
                     if (isDirectory) // Symlink na adresář
                         Directory.Delete(originalPath, false); // false, protože mažeme jen samotný odkaz
                     else // Symlink na soubor
@@ -222,7 +209,7 @@ namespace SymlinkApp
                 }
                 else if (isDirectory)
                 {
-                    Directory.Delete(originalPath, true); // Rekurzivní smazání skutečné složky
+                    Directory.Delete(originalPath, true); // Smazání skutečné složky
                     MessageBox.Show($"Složka '{originalPath}' a její obsah smazány.", "Hotovo", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 else if (isFile)
@@ -230,7 +217,7 @@ namespace SymlinkApp
                     File.Delete(originalPath); // Smazání skutečného souboru
                     MessageBox.Show($"Soubor '{originalPath}' smazán.", "Hotovo", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
-                // else by zde nemělo nastat, protože jsme existenci kontrolovali na začátku
+                
             }
             catch (UnauthorizedAccessException)
             {
@@ -242,10 +229,7 @@ namespace SymlinkApp
 
                 if (elevateResult == MessageBoxResult.Yes)
                 {
-                    // Zde je důležité předat správnou informaci, zda původní položka (ne nutně symlink) byla složka.
-                    // Pokud mažeme symlink, který ukazoval na složku, pro TryDeleteWithAdminRights by to měl být příkaz pro smazání složky (nebo souboru, pokud symlink na soubor).
-                    // Pokud je to symlink, tak je 'isDirectory' určeno podle toho, zda měl symlink atribut Directory.
-                    TryDeleteWithAdminRights(originalPath, isDirectory); // Předáváme, zda se to chovalo jako složka
+                    TryDeleteWithAdminRights(originalPath, isDirectory);
                 }
             }
             catch (IOException ioEx)
@@ -253,7 +237,7 @@ namespace SymlinkApp
                 string itemDesc = isSymlink ? "symlink" : (isDirectory ? "složku" : "soubor");
                 MessageBox.Show($"Chyba při mazání {itemDesc} (I/O): {ioEx.Message}\nUjistěte se, že {itemDesc} není používána jiným programem.", "Chyba při mazání", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-            catch (Exception ex) // Včetně FileNotFoundException / DirectoryNotFoundException, pokud by přece jen nastala
+            catch (Exception ex)
             {
                 MessageBox.Show($"Obecná chyba při mazání '{originalPath}': {ex.Message}", "Chyba", MessageBoxButton.OK, MessageBoxImage.Error);
             }
@@ -269,7 +253,7 @@ namespace SymlinkApp
                     // rd (smaže složku) /s (smaže strom adresářů) /q (tichý mód, bez potvrzení)
                     cmdCommand = $"/C rd /s /q \"{pathToDelete}\"";
                 }
-                else // je to soubor
+                else
                 {
                     // del (smaže soubor) /f (vynutí smazání read-only souborů) /q (tichý mód)
                     cmdCommand = $"/C del /f /q \"{pathToDelete}\"";
