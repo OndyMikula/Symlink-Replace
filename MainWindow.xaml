@@ -7,16 +7,18 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="400">
     <Grid>
-        <TextBox x:Name="folder1" HorizontalAlignment="Left" Margin="54,153,0,0" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="203"/>
-        <TextBox x:Name="folder2" HorizontalAlignment="Left" Margin="54,222,0,0" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="203" KeyDown="Enter_KeyDown"/>
-        
-        <Label Content="Původní cesta: " HorizontalAlignment="Left" Margin="54,122,0,0" VerticalAlignment="Top"/>
-        <Label Content="Cílová cesta: " HorizontalAlignment="Left" Margin="54,191,0,0" VerticalAlignment="Top"/>
+        <Label Content="Symlink creator" HorizontalAlignment="Center" Margin="0,55,0,0" VerticalAlignment="Top" Height="57" Width="auto" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" FontSize="35"/>
 
-        <Button x:Name="runBtn" Content="Vytvoř symlink"  Click="runBtn_Click" Margin="99,68,160,312"/>
-        <Button x:Name="delBtn" Content="Smazat složku"  Click="delBtn_Click" Margin="99,245,160,135"/>
+        <TextBox x:Name="folder1" HorizontalAlignment="Left" Margin="76,163,0,0" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="231"/>
+        <TextBox x:Name="folder2" HorizontalAlignment="Left" Margin="76,232,0,0" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="231" KeyDown="Enter_KeyDown"/>
 
-        <Button x:Name="btnBrowse1" Content="..." HorizontalAlignment="Left" Margin="262,153,0,0" VerticalAlignment="Top" Height="18" Click="btnBrowse1_Click"/>
-        <Button x:Name="btnBrowse2" Content="..." HorizontalAlignment="Left" Margin="262,222,0,0" VerticalAlignment="Top" Height="18" Click="btnBrowse2_Click"/>
+        <Label Content="Původní cesta: " HorizontalAlignment="Left" Margin="76,132,0,0" VerticalAlignment="Top" Width="95"/>
+        <Label Content="Cílová cesta: " HorizontalAlignment="Left" Margin="76,201,0,0" VerticalAlignment="Top" Width="84"/>
+
+        <Button x:Name="runBtn" Content="Vytvoř symlink"  Click="runBtn_Click" Margin="203,255,76,135"/>
+        <Button x:Name="delBtn" Content="Smazat složku"  Click="delBtn_Click" Margin="76,255,208,135"/>
+
+        <Button x:Name="btnBrowse1" Content="..." HorizontalAlignment="Left" Margin="312,163,0,0" VerticalAlignment="Top" Height="18" Click="btnBrowse1_Click"/>
+        <Button x:Name="btnBrowse2" Content="..." HorizontalAlignment="Left" Margin="312,232,0,0" VerticalAlignment="Top" Height="18" Click="btnBrowse2_Click"/>
     </Grid>
 </Window>

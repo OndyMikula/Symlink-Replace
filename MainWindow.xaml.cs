@@ -1,8 +1,10 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Forms;
+using System.Collections.Generic;
 using MessageBox = System.Windows.MessageBox;
 using KeyEventArgs = System.Windows.Input.KeyEventArgs;
 
@@ -20,16 +22,20 @@ namespace SymlinkApp
 
         private void runBtn_Click(object sender, RoutedEventArgs e)
         {
-            string originalPath = folder1.Text;
-            string targetPath = folder2.Text;
-            string symlinkPath = $"mklink " + "/D /K" + string.Join(" ", originalPath) + string.Join(" ", originalPath);
+            string originalPath = folder1.Text; //Cesta, kde je slozka/soubor ale bude tam potom symlink
+            string targetPath = folder2.Text; //Cesta, kam se původní složka/soubor zkopíruje
+
+            FileAttributes attr = File.GetAttributes(originalPath);
+            var soubor = File.Exists(originalPath);
+            var slozka = Directory.Exists(originalPath);
+
+            bool boolSlozka = Boolean.TryParse(slozka.ToString(), out bool boolslozka);
+
+            List<string> symlinkPath = new List<string>();
+            symlinkPath.Add("mklink");
 
             if (File.Exists(originalPath) || Directory.Exists(originalPath))
             {
-                FileAttributes attr = File.GetAttributes(originalPath);
-                var soubor = File.Exists(originalPath);
-                var slozka = Directory.Exists(originalPath);
-
                 if ((attr & FileAttributes.ReparsePoint) == FileAttributes.ReparsePoint)
                 {
                     // Je to symlink – smažem podle typu
@@ -37,7 +43,7 @@ namespace SymlinkApp
                     if (result == MessageBoxResult.Yes)
                     {
                         if (Directory.Exists(originalPath))
-                            Directory.Delete(originalPath);
+                            Directory.Delete(originalPath, true);
                         else
                             File.Delete(originalPath);
                     }
@@ -45,17 +51,17 @@ namespace SymlinkApp
                 }
                 else if (slozka)
                 {
-                    var result = MessageBox.Show($"Chystám se smazat složku {originalPath}", "DeleteFolder", MessageBoxButton.YesNo, MessageBoxImage.Error);
+                    var result = MessageBox.Show($"Budu přesouvat složku {originalPath} \n Chceš pokračovat ?", "DeleteFolder", MessageBoxButton.YesNo, MessageBoxImage.Error);
                     if (result == MessageBoxResult.Yes)
                     {
-                        Directory.Delete(originalPath);
+                        Directory.Delete(originalPath, true);
                     }
                     else
                         return;
                 }
                 else if (soubor)
                 {
-                    var result = MessageBox.Show($"Chystám se smazat soubor {originalPath} co ale není symlink", "DeleteFile", MessageBoxButton.OK, MessageBoxImage.Error);
+                    var result = MessageBox.Show($"Chystám se smazat soubor {originalPath} co ale není symlink. \n Chceš pokračovat ?", "DeleteFile", MessageBoxButton.OK, MessageBoxImage.Error);
                     if (result == MessageBoxResult.Yes)
                     {
                         File.Delete(originalPath);
@@ -65,12 +71,39 @@ namespace SymlinkApp
                 }
             }
 
-            ProcessStartInfo psi = new ProcessStartInfo("cmd.exe", symlinkPath); // your command here
+            if (slozka)
+            {
+                symlinkPath.Add("/D");
+            }
+            symlinkPath.Add($"\"{originalPath}\"");
+            symlinkPath.Add($"\"{targetPath}\"");
+            string createSymlinkPath = string.Join(" ", symlinkPath);
+
+            ProcessStartInfo psi = new ProcessStartInfo("cmd.exe",$"/k {createSymlinkPath}");
             psi.UseShellExecute = true;
             psi.Verb = "runas";
-            Process.Start(psi);
+            Process proc = Process.Start(psi);
 
-
+            try
+            {
+                if (proc != null)
+                {
+                    
+                }
+                else
+                {
+                    // Toto by se stalo, jen kdyby Process.Start samo vrátilo null, což je velmi vzácné.
+                    MessageBox.Show("Nepodařilo se získat referenci na spuštěný CMD proces.", "Chyba spuštění", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            catch (System.ComponentModel.Win32Exception exUac) when (exUac.NativeErrorCode == 1223) // Uživatel zrušil UAC
+            {
+                MessageBox.Show("Vytváření symlinku zrušeno uživatelem (UAC). CMD okno se nespustilo.", "Zrušeno", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            catch (Exception exSymlink) // Jiné chyby při pokusu o SP mischievousnessUŠTĚNÍ procesu
+            {
+                MessageBox.Show($"Chyba při pokusu o spuštění CMD pro mklink: {exSymlink.Message}", "Chyba spuštění", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void Enter_KeyDown(object sender, KeyEventArgs e)
@@ -130,7 +163,7 @@ namespace SymlinkApp
                 var result2 = MessageBox.Show($"Chystám se smazat složku {originalPath}", "DeleteFolder", MessageBoxButton.YesNo, MessageBoxImage.Error);
                 if (result2 == MessageBoxResult.Yes)
                 {
-                    Directory.Delete(originalPath);
+                    Directory.Delete(originalPath, true);
                 }
                 else
                     return;
@@ -153,15 +186,7 @@ namespace SymlinkApp
                 return;
             }
 
-            // Pokud je to symlink, tvůj kód zobrazí zprávu a skončí.
-            // Toto chování ponechávám, jak sis ho napsal.
-            if ((attr & FileAttributes.ReparsePoint) == FileAttributes.ReparsePoint)
-            {
-                MessageBox.Show("Bacha, tohle je symlink (v folder1), radši si to překontroluj šášulo 🧻", "Pozor: Symlink", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-
+            
             try
             {
                 if (slozka)
@@ -221,7 +246,7 @@ namespace SymlinkApp
                 {
                     Verb = "runas",
                     UseShellExecute = true,
-                    WindowStyle = ProcessWindowStyle.Hidden,
+                    WindowStyle = ProcessWindowStyle.Normal,
                     CreateNoWindow = true,
                 };
 
