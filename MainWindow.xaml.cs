@@ -31,50 +31,18 @@ namespace SymlinkApp
 
             bool boolSlozka = Boolean.TryParse(slozka.ToString(), out bool boolslozka);
 
+            CopyFolderContents(sender, e); //kopíruje obsah složky (soubory) z originalPath do targetPath
+            CopyDirectory(originalPath, targetPath, true); //kopíruje obsah složky (podsložky) z originalPath do targetPath
+            delBtn_Click(sender, e); //mazání původní složky/souboru/symlinku (originalPath)
+
             List<string> symlinkPath = new List<string>();
             symlinkPath.Add("mklink");
-
-            if (File.Exists(originalPath) || Directory.Exists(originalPath))
-            {
-                if ((attr & FileAttributes.ReparsePoint) == FileAttributes.ReparsePoint)
-                {
-                    // Je to symlink – smažem podle typu
-                    var result = MessageBox.Show("Bacha, chystám se smazat symlink, vážně to chceš udělat kašpare?", "Delete symlink", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-                    if (result == MessageBoxResult.Yes)
-                    {
-                        if (Directory.Exists(originalPath))
-                            Directory.Delete(originalPath, true);
-                        else
-                            File.Delete(originalPath);
-                    }
-                    
-                }
-                else if (slozka)
-                {
-                    var result = MessageBox.Show($"Budu přesouvat složku {originalPath} \n Chceš pokračovat ?", "DeleteFolder", MessageBoxButton.YesNo, MessageBoxImage.Error);
-                    if (result == MessageBoxResult.Yes)
-                    {
-                        Directory.Delete(originalPath, true);
-                    }
-                    else
-                        return;
-                }
-                else if (soubor)
-                {
-                    var result = MessageBox.Show($"Chystám se smazat soubor {originalPath} co ale není symlink. \n Chceš pokračovat ?", "DeleteFile", MessageBoxButton.OK, MessageBoxImage.Error);
-                    if (result == MessageBoxResult.Yes)
-                    {
-                        File.Delete(originalPath);
-                    }
-                    else
-                        return;
-                }
-            }
 
             if (slozka)
             {
                 symlinkPath.Add("/D"); // pro symlink na složku
             }
+
             symlinkPath.Add($"\"{originalPath}\"");
             symlinkPath.Add($"\"{targetPath}\"");
             string createSymlinkPath = string.Join(" ", symlinkPath); //complete command for making symlink in cmd
@@ -84,6 +52,7 @@ namespace SymlinkApp
             psi.Verb = "runas";  //spusti cmd jako admin
             Process proc = Process.Start(psi);
 
+            #region Chyby při spuštění CMD
             try
             {
                 if (proc == null)
@@ -99,6 +68,7 @@ namespace SymlinkApp
             {
                 MessageBox.Show($"Chyba při pokusu o spuštění CMD pro mklink: {exSymlink.Message}", "Chyba spuštění", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+            #endregion
         }
 
         private void Enter_KeyDown(object sender, KeyEventArgs e) //Enter key starts runBtn_Click
@@ -137,10 +107,11 @@ namespace SymlinkApp
 
             if (string.IsNullOrWhiteSpace(originalPath))
             {
-                MessageBox.Show("Není zadaná cesta (folder1).", "Chyba", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Není zadaná zdrojová cesta.", "Chyba", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
+            #region Definice proměnných
             bool isDirectory;
             bool isFile;
             bool isSymlink = false;
@@ -175,7 +146,9 @@ namespace SymlinkApp
                 MessageBox.Show($"Chyba při čtení informací o cestě '{originalPath}': {exAttr.Message}", "Chyba", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
+            #endregion
 
+            #region Potvrzení smazání
             string typPolozky = isSymlink ? "symlink" : (isDirectory ? "složku" : "soubor");
             string zpravaPotvrzeni;
 
@@ -189,18 +162,17 @@ namespace SymlinkApp
             }
 
             var confirmResult = MessageBox.Show(zpravaPotvrzeni, "Potvrzení smazání", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-            if (confirmResult != MessageBoxResult.Yes)
+            if (confirmResult == MessageBoxResult.No)
             {
                 MessageBox.Show("Mazání zrušeno uživatelem.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
+            #endregion
 
-            // --- JEDEN BLOK PRO MAZÁNÍ ---
             try
             {
                 if (isSymlink)
                 {
-
                     if (isDirectory) // Symlink na adresář
                         Directory.Delete(originalPath, false); // false, protože mažeme jen samotný odkaz
                     else // Symlink na soubor
@@ -235,7 +207,7 @@ namespace SymlinkApp
             catch (IOException ioEx)
             {
                 string itemDesc = isSymlink ? "symlink" : (isDirectory ? "složku" : "soubor");
-                MessageBox.Show($"Chyba při mazání {itemDesc} (I/O): {ioEx.Message}\nUjistěte se, že {itemDesc} není používána jiným programem.", "Chyba při mazání", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Chyba při mazání {itemDesc} \nChyba: {ioEx.Message}\nUjistěte se, že {itemDesc} není používána jiným programem.", "Chyba při mazání", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             catch (Exception ex)
             {
@@ -315,6 +287,98 @@ namespace SymlinkApp
             catch (Exception ex_elevated)
             {
                 MessageBox.Show("Obecná chyba při pokusu o smazání s admin právy: " + ex_elevated.Message, "Chyba", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        private void CopyFolderContents(object sender, RoutedEventArgs e) //kopíruje soubory do cílové složky
+        {
+            string sourceFolderPath = folder1.Text.Trim();
+            string destinationFolderPath = folder2.Text.Trim();
+
+            if (string.IsNullOrWhiteSpace(sourceFolderPath) || string.IsNullOrWhiteSpace(destinationFolderPath))
+            {
+                MessageBox.Show("Nezadals zdrojovou nebo cílovou cestu more šašku.", "Chybějící cesty", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (!Directory.Exists(sourceFolderPath))
+            {
+                MessageBox.Show($"Zdrojová složka '{sourceFolderPath}' neexistuje.", "Zdroj nenalezen", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            // Cílová složka nemusí existovat, bude vytvořena.
+            // Ale pokud v cíli existuje soubor se stejným jménem jako cílová složka, je to problém.
+            if (File.Exists(destinationFolderPath))
+            {
+                MessageBox.Show($"Cílová cesta '{destinationFolderPath}' již existuje jako soubor. Zadej platnej název pro cílovou složku more jinak si tě najdu.", "Konflikt v cíli", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            try
+            {
+                var confirmResult = MessageBox.Show(
+                    $"Opravdu chceš zkopírovat VEŠKERÝ OBSAH ze složky:\n'{sourceFolderPath}'\n\ndo složky:\n'{destinationFolderPath}'?\n\nPokud v cílové složce existují soubory se stejným názvem, budou PŘEPSÁNY.",
+                    "Potvrdit kopírování obsahu",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (confirmResult == MessageBoxResult.Yes)
+                {
+                    CopyDirectory(sourceFolderPath, destinationFolderPath, true); // true pro přepsání existujících souborů
+                    MessageBox.Show("Obsah složky byl úspěšně zkopírován.", "Kopírování dokončeno", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else
+                {
+                    MessageBox.Show("Kopírování zrušeno.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (DirectoryNotFoundException dirEx)
+            {
+                MessageBox.Show($"Chyba: Zdrojový nebo část cílového adresáře nebyla nalezena.\n{dirEx.Message}", "Chyba adresáře", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            catch (IOException ioEx)
+            {
+                MessageBox.Show($"Chyba během kopírování: {ioEx.Message}\nUjistěte se, že soubory nejsou používány, máte dostatek místa na disku a platné názvy cest.", "Chyba I/O", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            catch (UnauthorizedAccessException uaEx)
+            {
+                var result = MessageBox.Show($"Nedostatečná oprávnění pro přístup k souborům/složkám: {uaEx.Message}\nChceš ji zkusit smazat s admin právama ?", "Chyba oprávnění", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                if (result == MessageBoxResult.Yes)
+                {
+                    TryDeleteWithAdminRights(sourceFolderPath, true); // Pokus o smazání s admin právy
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Neočekávaná chyba při kopírování: {ex.Message}", "Obecná chyba", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        public static void CopyDirectory(string sourceDirPath, string destDirPath, bool overwriteFiles = true)
+        {
+            DirectoryInfo sourceDir = new DirectoryInfo(sourceDirPath);
+            if (!sourceDir.Exists)
+            {
+                throw new DirectoryNotFoundException($"Zdrojový adresář nebyl nalezen: {sourceDirPath}");
+            }
+
+            // Pokud cílový adresář neexistuje, vytvoříme ho.
+            if (!Directory.Exists(destDirPath))
+            {
+                Directory.CreateDirectory(destDirPath);
+            }
+
+            // Zkopírujeme všechny soubory v aktuálním adresáři.
+            foreach (FileInfo file in sourceDir.GetFiles())
+            {
+                string targetFilePath = Path.Combine(destDirPath, file.Name);
+                file.CopyTo(targetFilePath, overwriteFiles);
+            }
+
+            // Zkopírujeme všechny podsložky (rekurzivně).
+            foreach (DirectoryInfo subDir in sourceDir.GetDirectories())
+            {
+                string newDestSubDirPath = Path.Combine(destDirPath, subDir.Name);
+                CopyDirectory(subDir.FullName, newDestSubDirPath, overwriteFiles);
             }
         }
     }
