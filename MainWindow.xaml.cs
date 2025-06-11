@@ -1,12 +1,9 @@
-﻿using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Input;
-using System.Windows.Forms;
-using System.Collections.Generic;
-using MessageBox = System.Windows.MessageBox;
 using KeyEventArgs = System.Windows.Input.KeyEventArgs;
+using MessageBox = System.Windows.MessageBox;
 
 namespace SymlinkApp
 {
@@ -131,7 +128,7 @@ namespace SymlinkApp
                     }
                     else
                     {
-                        isDirectory = Directory.Exists(originalPath); 
+                        isDirectory = Directory.Exists(originalPath);
                         isFile = File.Exists(originalPath);
                     }
                 }
@@ -141,7 +138,7 @@ namespace SymlinkApp
                     return;
                 }
             }
-            catch (Exception exAttr) 
+            catch (Exception exAttr)
             {
                 MessageBox.Show($"Chyba při čtení informací o cestě '{originalPath}': {exAttr.Message}", "Chyba", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
@@ -189,7 +186,7 @@ namespace SymlinkApp
                     File.Delete(originalPath); // Smazání skutečného souboru
                     MessageBox.Show($"Soubor '{originalPath}' smazán.", "Hotovo", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
-                
+
             }
             catch (UnauthorizedAccessException)
             {
