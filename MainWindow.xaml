@@ -9,8 +9,8 @@
     <Grid MaxHeight="450" MaxWidth="400" MinHeight="450" MinWidth="400">
         <Label Content="Symlink creator" HorizontalAlignment="Center" Margin="0,55,0,0" VerticalAlignment="Top" Height="57" Width="auto" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" FontSize="35"/>
 
-        <TextBox x:Name="folder1" HorizontalAlignment="Left" Margin="76,163,0,0" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="231"/>
-        <TextBox x:Name="folder2" HorizontalAlignment="Left" Margin="76,232,0,0" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="231" KeyDown="Enter_KeyDown"/>
+        <TextBox x:Name="folder1" HorizontalAlignment="Left" Margin="76,163,0,0" Text="" VerticalAlignment="Top" Width="231"/>
+        <TextBox x:Name="folder2" HorizontalAlignment="Left" Margin="76,232,0,0" Text="" VerticalAlignment="Top" Width="231" KeyDown="Enter_KeyDown"/>
 
         <Label Content="Původní cesta: " HorizontalAlignment="Left" Margin="76,132,0,0" VerticalAlignment="Top" Width="95"/>
         <Label Content="Cílová cesta: " HorizontalAlignment="Left" Margin="76,201,0,0" VerticalAlignment="Top" Width="84"/>
