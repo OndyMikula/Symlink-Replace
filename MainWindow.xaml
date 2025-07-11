@@ -17,8 +17,10 @@
 
         <Button x:Name="runBtn" Content="Vytvoř symlink"  Click="runBtn_Click" Margin="203,255,76,135"/>
         <Button x:Name="delBtn" Content="Smazat"  Click="delBtn_Click" Margin="76,255,208,135"/>
+        <ProgressBar x:Name="progressBar" Height="15" Minimum="75" Maximum="100" Margin="76,336,76,99" Visibility="Visible"/>
 
         <Button x:Name="btnBrowse1" Content="..." HorizontalAlignment="Left" Margin="312,163,0,0" VerticalAlignment="Top" Height="18" Click="btnBrowse1_Click"/>
         <Button x:Name="btnBrowse2" Content="..." HorizontalAlignment="Left" Margin="312,232,0,0" VerticalAlignment="Top" Height="18" Click="btnBrowse2_Click"/>
+
     </Grid>
 </Window>

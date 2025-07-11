@@ -1,7 +1,9 @@
-﻿using System.Diagnostics;
+﻿using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media.Animation;
 using KeyEventArgs = System.Windows.Input.KeyEventArgs;
 using MessageBox = System.Windows.MessageBox;
 
@@ -12,60 +14,80 @@ namespace SymlinkApp
     /// </summary>
     public partial class MainWindow : Window
     {
+        BackgroundWorker worker = new BackgroundWorker();
+        private string originalPath;
+        private string targetPath;
+
         public MainWindow()
         {
             InitializeComponent();
+
+            // progressBar veci more sasku aby to bezelo a zaroven se slozka kopirovala apod
+            // set background worker
+            worker.DoWork += new DoWorkEventHandler(worker_DoWork);
+            worker.ProgressChanged += new ProgressChangedEventHandler(worker_ProgressChanged);
+            worker.RunWorkerCompleted += new RunWorkerCompletedEventHandler(worker_RunWorkerCompleted);
+            worker.WorkerReportsProgress = true;
+        }
+        #region ProgressBar
+
+        private void worker_DoWork(object sender, DoWorkEventArgs e)
+        {
+            worker.ReportProgress(10);
+            Thread.Sleep(200); // jen pro vizuální efekt
+
+            // Kopírování souborů
+            Dispatcher.Invoke(() => CopyFolderContents(null, null));
+            worker.ReportProgress(50);
+
+            Thread.Sleep(200); // fake delay
+
+            // Kopírování složek
+            Dispatcher.Invoke(() => CopyDirectory(originalPath, targetPath, true));
+            worker.ReportProgress(75);
+
+            Thread.Sleep(200); // fake delay
+
+            // Mazání původní cesty
+            Dispatcher.Invoke(() => delBtn_Click(null, null));
+            worker.ReportProgress(200);
+
+            // Vytvoření symlinku
+            Dispatcher.Invoke(() => CreateSymlink());
+            worker.ReportProgress(100);
         }
 
+
+        private void worker_ProgressChanged(object sender, ProgressChangedEventArgs e)
+        {
+            progressBar.Value = e.ProgressPercentage;
+        }
+
+        private void worker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        {
+            if (e.Error != null)
+            {
+                MessageBox.Show($"Chyba při dokončení operace: {e.Error.Message}", "Chyba", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            else
+            {
+                MessageBox.Show("Hotovo šašku", "Hotovo", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+        #endregion
+
+        #region MainApp
         private void runBtn_Click(object sender, RoutedEventArgs e)
         {
-            string originalPath = folder1.Text; //Cesta, kde je slozka/soubor ale bude tam potom symlink
-            string targetPath = folder2.Text; //Cesta, kam se původní složka/soubor zkopíruje
+            originalPath = folder1.Text.Trim();
+            targetPath = folder2.Text.Trim();
 
-            FileAttributes attr = File.GetAttributes(originalPath);
-            var soubor = File.Exists(originalPath);
-            var slozka = Directory.Exists(originalPath);
+            progressBar.Value = 0;
 
-            bool boolSlozka = Boolean.TryParse(slozka.ToString(), out bool boolslozka);
-
-            CopyFolderContents(sender, e); //kopíruje obsah složky (soubory) z originalPath do targetPath
-            CopyDirectory(originalPath, targetPath, true); //kopíruje obsah složky (podsložky) z originalPath do targetPath
-            delBtn_Click(sender, e); //mazání původní složky/souboru/symlinku (originalPath)
-
-            List<string> symlinkPath = new List<string>();
-            symlinkPath.Add("mklink");
-
-            if (slozka)
+            if (!worker.IsBusy)
             {
-                symlinkPath.Add("/D"); // pro symlink na složku
+                worker.RunWorkerAsync();
             }
-
-            symlinkPath.Add($"\"{originalPath}\"");
-            symlinkPath.Add($"\"{targetPath}\"");
-            string createSymlinkPath = string.Join(" ", symlinkPath); //complete command for making symlink in cmd
-
-            ProcessStartInfo psi = new ProcessStartInfo("cmd.exe",$"/k {createSymlinkPath}"); //spusti cmd jako admin
-            psi.UseShellExecute = true;
-            psi.Verb = "runas";  //spusti cmd jako admin
-            Process proc = Process.Start(psi);
-
-            #region Chyby při spuštění CMD
-            try
-            {
-                if (proc == null)
-                {
-                    MessageBox.Show("Nepodařilo se získat referenci na spuštěný CMD proces.", "Chyba spuštění", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-            }
-            catch (System.ComponentModel.Win32Exception exUac) when (exUac.NativeErrorCode == 1223) // Uživatel zrušil UAC
-            {
-                MessageBox.Show("Vytváření symlinku zrušeno uživatelem (UAC). CMD okno se nespustilo.", "Zrušeno", MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
-            catch (Exception exSymlink) // Jiné chyby při pokusu o SP mischievousnessUŠTĚNÍ procesu
-            {
-                MessageBox.Show($"Chyba při pokusu o spuštění CMD pro mklink: {exSymlink.Message}", "Chyba spuštění", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-            #endregion
         }
 
         private void Enter_KeyDown(object sender, KeyEventArgs e) //Enter key starts runBtn_Click
@@ -160,8 +182,7 @@ namespace SymlinkApp
 
             var confirmResult = MessageBox.Show(zpravaPotvrzeni, "Potvrzení smazání", MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (confirmResult == MessageBoxResult.No)
-            {
-                MessageBox.Show("Mazání zrušeno uživatelem.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+            { 
                 return;
             }
             #endregion
@@ -322,6 +343,7 @@ namespace SymlinkApp
                 if (confirmResult == MessageBoxResult.Yes)
                 {
                     CopyDirectory(sourceFolderPath, destinationFolderPath, true); // true pro přepsání existujících souborů
+
                     MessageBox.Show("Obsah složky byl úspěšně zkopírován.", "Kopírování dokončeno", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 else
@@ -378,5 +400,49 @@ namespace SymlinkApp
                 CopyDirectory(subDir.FullName, newDestSubDirPath, overwriteFiles);
             }
         }
+        private void CreateSymlink()
+        {
+            originalPath = folder1.Text.Trim();
+            targetPath = folder2.Text.Trim();
+
+            if (Directory.Exists(originalPath) || File.Exists(originalPath))
+            {
+                try
+                {
+                    Directory.Delete(originalPath, true);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Před vytvořením symlinku se nepodařilo odstranit původní cestu: " + ex.Message, "Chyba", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+            }
+
+            List<string> symlinkPath = new List<string> { "mklink" };
+
+            if (Directory.Exists(targetPath))
+                symlinkPath.Add("/D"); // složka
+
+            symlinkPath.Add($"\"{originalPath}\"");
+            symlinkPath.Add($"\"{targetPath}\"");
+
+            string createSymlinkPath = string.Join(" ", symlinkPath);
+
+            try
+            {
+                ProcessStartInfo psi = new ProcessStartInfo("cmd.exe", $"/k {createSymlinkPath}")
+                {
+                    UseShellExecute = true,
+                    Verb = "runas"
+                };
+                Process.Start(psi);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Chyba při vytváření symlinku: " + ex.Message);
+            }
+        }
+
     }
+    #endregion
 }
